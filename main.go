@@ -22,6 +22,8 @@ func homePage(response http.ResponseWriter, request *http.Request) {
 */
 func handleRequests() {
 	http.HandleFunc("/", homePage)
+	http.HandleFunc("/users/{id}", getUser)
+	http.HandleFunc("/users", postUser)
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
 
@@ -31,6 +33,58 @@ func handleRequests() {
    The one below this comment is model/user.go
 */
 
+type User struct {
+	ID       primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+	Name     string             `json:"name,omitempty" bson:"name,omitempty"`
+	Email    string             `json:"email,omitempty" bson:"email,omitempty"`
+	Password string             `json:"-,omitempty" bson:"-,omitempty"`
+}
+
+type Users []User
+
+var client *mongo.Client
+
+func getUser(response http.ResponseWriter, request *http.Request) {
+	/*
+	   return type => (user *User)
+	   parameter type => (id int64)
+	   Get one user by ID
+	*/
+    response.Header().Add("content-type", "application/json")
+    params := request.URL.Query().Get("id")
+    fmt.Println(params)
+    id, _ := primitive.ObjectIDFromHex(params)
+    var user User
+
+    collection := client.Database("insta").Collection("user")
+    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+    // BROKEN for some reason
+    err := collection.FindOne(ctx, User{ID: id}).Decode(&user)
+    if err != nil {
+        response.WriteHeader(http.StatusInternalServerError)
+        response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+        return
+    }
+
+    json.NewEncoder(response).Encode(user)
+	fmt.Println("Endpoint Hit: All articles endpoint")
+}
+
+func postUser(response http.ResponseWriter, request *http.Request) {
+	/*
+	   parameter type => (user *User)
+	   Create a user
+	*/
+    response.Header().Add("content-type", "application/json")
+    var user User
+    json.NewDecoder(request.Body).Decode(&user)
+    collection := client.Database("insta").Collection("user")
+    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+    result, _ := collection.InsertOne(ctx, user)
+    json.NewEncoder(response).Encode(result)
+
+	fmt.Println("Endpoint Hit: Create an user endpoint")
+}
 
 func main() {
     fmt.Println("Starting the application...")
