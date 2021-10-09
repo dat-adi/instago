@@ -2,24 +2,24 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha512"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-    "crypto/rand"
-    "crypto/sha512"
 	"log"
 	"net/http"
 	"time"
-    "encoding/json"
-    "encoding/base64"
 )
 
 func homePage(response http.ResponseWriter, request *http.Request) {
 	fmt.Fprintf(response, "Homepage Endpoint Hit...\n")
 	fmt.Fprintf(response, "Please check the other endpoints now.")
-    fmt.Println(request.URL)
+    fmt.Println("From the homepage => ", request.URL)
 }
 
 /*
@@ -27,7 +27,7 @@ func homePage(response http.ResponseWriter, request *http.Request) {
 */
 func handleRequests() {
 	http.HandleFunc("/", homePage)
-    http.HandleFunc("/users/all", getAllUsers)
+	http.HandleFunc("/users/all", getAllUsers)
 	http.HandleFunc("/users/{id}", getUser)
 	http.HandleFunc("/users", postUser)
 	http.HandleFunc("/posts/{id}", getPost)
@@ -55,33 +55,32 @@ type User struct {
 type Users []User
 
 func getAllUsers(response http.ResponseWriter, request *http.Request) {
-    fmt.Println(request)
+	fmt.Println(request)
 
-    // Connecting to MongoDB's user collection
-    collection := client.Database("insta").Collection("user")
-    //ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-    fmt.Println("If you see this, it's getting past here.")
+	// Connecting to MongoDB's user collection
+	collection := client.Database("insta").Collection("user")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	fmt.Println("If you see this, it's getting past here.")
 
-    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-    cursor, err := collection.Find(ctx, bson.D{})
-    if err != nil {
-        response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-    }
+	cursor, err := collection.Find(ctx, bson.D{})
+	if err != nil {
+		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+	}
 
-    var user User
-    nerr := cursor.Decode(&user)
-    if nerr != nil {
-        response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-    }
+	var user User
+	nerr := cursor.Decode(&user)
+	if nerr != nil {
+		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+	}
 
-    fmt.Println(cursor)
-    if err != nil {
-        response.WriteHeader(http.StatusInternalServerError)
-        response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-        return
-    }
+	fmt.Println(cursor)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+		return
+	}
 
-    json.NewEncoder(response).Encode(cursor)
+	json.NewEncoder(response).Encode(cursor)
 }
 
 func getUser(response http.ResponseWriter, request *http.Request) {
@@ -91,8 +90,8 @@ func getUser(response http.ResponseWriter, request *http.Request) {
 	   Get one user by ID
 	*/
 
-    fmt.Println(request)
-    fmt.Println(request.URL.Query())
+	fmt.Println(request)
+	fmt.Println(request.URL.Query())
 
 	// Checking the HTTP Request Method
 	if request.Method == "GET" {
@@ -101,7 +100,7 @@ func getUser(response http.ResponseWriter, request *http.Request) {
 
 		// Parsing the URL for parameters
 		params := request.URL.Query().Get("id")
-        fmt.Println(params)
+		fmt.Println(params)
 		fmt.Fprintf(response, params)
 
 		// Converting the params into an ObjectID
@@ -137,7 +136,7 @@ func postUser(response http.ResponseWriter, request *http.Request) {
 	   Create a user
 	*/
 
-    fmt.Println(request)
+	fmt.Println(request)
 
 	if request.Method == "POST" {
 		response.Header().Add("content-type", "application/json")
@@ -146,18 +145,18 @@ func postUser(response http.ResponseWriter, request *http.Request) {
 		collection := client.Database("insta").Collection("user")
 		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 
-        salt := generateRandomSalt(16)
-        user.Password = hashPassword(user.Password, salt)
+		salt := generateRandomSalt(16)
+		user.Password = hashPassword(user.Password, salt)
 
 		result, _ := collection.InsertOne(ctx, user)
 		json.NewEncoder(response).Encode(result)
-        /*
-            The function to check for whether the passwords match,
-            should be one that is done during the authentication process,
-            and as such, has not been implemented here.
-            However, can be done using the :doPasswordsMatch: function
-            in the utilities.
-        */
+		/*
+		   The function to check for whether the passwords match,
+		   should be one that is done during the authentication process,
+		   and as such, has not been implemented here.
+		   However, can be done using the :doPasswordsMatch: function
+		   in the utilities.
+		*/
 	} else {
 		http.Redirect(response, request, "/", http.StatusFound)
 	}
@@ -170,10 +169,11 @@ func postUser(response http.ResponseWriter, request *http.Request) {
 */
 
 type Post struct {
-	ID       primitive.ObjectID `json:"id"`
-	Caption  string             `json:"caption"`
-	ImageURL string             `json:"image_url"`
-	PostedAt *time.Time         `json:"posted_at"`
+	ID       primitive.ObjectID `json:"_id,omitempty" bson:"_id,omitempty"`
+    Caption  string             `json:"caption" bson:"caption,omitempty"`
+	ImageURL string             `json:"image_url" bson:"image_url,omitempty"`
+	PostedAt *time.Time         `json:"posted_at" bson:"posted_at"`
+    userId   User               `json:"user_id" bson:"user_id"`
 }
 
 type Posts []Post
@@ -184,6 +184,8 @@ func getPost(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (id int64)
 	   Get one post by ID
 	*/
+    fmt.Println("From the GET post function => ", request.RequestURI)
+
 	if request.Method == "GET" {
 		response.Header().Add("content-type", "application/json")
 		params := request.URL.Query().Get("id")
@@ -212,6 +214,8 @@ func postPost(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (post *Post)
 	   Create a post
 	*/
+    fmt.Println("From the POST post function => ", request.RequestURI)
+
 	if request.Method == "POST" {
 		response.Header().Add("content-type", "application/json")
 		var post Post
@@ -233,15 +237,37 @@ func getAllPosts(response http.ResponseWriter, request *http.Request) {
 	   return type => array of (post *Post)?
 	   Get all the posts made by a user
 	*/
+
+    fmt.Println("From the getAllPosts function => ", request.RequestURI)
+
 	if request.Method == "GET" {
+        response.Header().Add("content-type", "application/json")
+        keys := request.URL.Query()
+        fmt.Println("Are we reaching here?")
+        fmt.Printf("Here are the keys : %s\n", keys)
+        id := keys.Get("id")
+        fmt.Println(id)
+        //lim := keys.Get("limit")
+
+        //var posts []Post
+
+		collection := client.Database("insta").Collection("post")
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+
+        cursor, err := collection.Find(context.TODO(), bson.M{"userId": id})
+        if err != nil {
+            fmt.Println("Finding all the documents ERROR :", err)
+            defer cursor.Close(ctx)
+        }
+        fmt.Println(cursor)
 	} else {
 		http.Redirect(response, request, "/", http.StatusFound)
 	}
-    fmt.Fprintf(response, "Endpoint Hit: Get all user Posts endpoint")
+	fmt.Fprintf(response, "Endpoint Hit: Get all user Posts endpoint")
 }
 
 /*
-    Utility Functions
+   Utility Functions
 */
 
 // Define salt size
@@ -250,47 +276,45 @@ const saltSize = 16
 // Generate 16 bytes randomly and securely using the
 // crypto.rand package
 func generateRandomSalt(saltSize int) []byte {
-  var salt = make([]byte, saltSize)
+	var salt = make([]byte, saltSize)
 
-  _, err := rand.Read(salt[:])
+	_, err := rand.Read(salt[:])
 
-  if err != nil {
-    panic(err)
-  }
+	if err != nil {
+		panic(err)
+	}
 
-  return salt
+	return salt
 }
 
 // Combine password and salt then hash them using the SHA-512
 // hashing algorithm and then return the hashed password
 // as a base64 encoded string
 func hashPassword(password string, salt []byte) string {
-  // Convert password string to byte slice
-  var passwordBytes = []byte(password)
+	// Convert password string to byte slice
+	var passwordBytes = []byte(password)
 
-  // Create sha-512 hasher
-  var sha512Hasher = sha512.New()
+	// Create sha-512 hasher
+	var sha512Hasher = sha512.New()
 
-  // Append salt to password
-  passwordBytes = append(passwordBytes, salt...)
+	// Append salt to password
+	passwordBytes = append(passwordBytes, salt...)
 
-  // Write password bytes to the hasher
-  sha512Hasher.Write(passwordBytes)
+	// Write password bytes to the hasher
+	sha512Hasher.Write(passwordBytes)
 
-  // Get the SHA-512 hashed password
-  var hashedPasswordBytes = sha512Hasher.Sum(nil)
+	// Get the SHA-512 hashed password
+	var hashedPasswordBytes = sha512Hasher.Sum(nil)
 
-  // Convert the hashed password to a base64 encoded string
-  var base64EncodedPasswordHash =
-      base64.URLEncoding.EncodeToString(hashedPasswordBytes)
+	// Convert the hashed password to a base64 encoded string
+	var base64EncodedPasswordHash = base64.URLEncoding.EncodeToString(hashedPasswordBytes)
 
-  return base64EncodedPasswordHash
+	return base64EncodedPasswordHash
 }
 
 // Check if two passwords match
-func doPasswordsMatch(hashedPassword, currPassword string,
-  salt[]byte) bool {
-  var currPasswordHash = hashPassword(currPassword, salt)
+func doPasswordsMatch(hashedPassword, currPassword string, salt []byte) bool {
+	var currPasswordHash = hashPassword(currPassword, salt)
 
-  return hashedPassword == currPasswordHash
+	return hashedPassword == currPasswordHash
 }
