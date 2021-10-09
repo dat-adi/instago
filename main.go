@@ -11,6 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+    "go.mongodb.org/mongo-driver/mongo/readpref"
 	"log"
 	"net/http"
 	"time"
@@ -32,7 +33,7 @@ func handleRequests() {
 	http.HandleFunc("/users", postUser)
 	http.HandleFunc("/posts/{id}", getPost)
 	http.HandleFunc("/posts", postPost)
-	http.HandleFunc("/posts/users/{id}", getAllPosts)
+	http.HandleFunc("/posts/users/{id}", getPostsByUserId)
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
 
@@ -57,19 +58,19 @@ type Users []User
 func getAllUsers(response http.ResponseWriter, request *http.Request) {
 	fmt.Println(request)
 
+	var user User
+
 	// Connecting to MongoDB's user collection
 	collection := client.Database("insta").Collection("user")
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	fmt.Println("If you see this, it's getting past here.")
 
-	cursor, err := collection.Find(ctx, bson.D{})
+	cursor, err := collection.Find(ctx, user)
 	if err != nil {
 		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
 	}
 
-	var user User
-	nerr := cursor.Decode(&user)
-	if nerr != nil {
+	err = cursor.Decode(&user)
+	if err != nil {
 		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
 	}
 
@@ -90,39 +91,47 @@ func getUser(response http.ResponseWriter, request *http.Request) {
 	   Get one user by ID
 	*/
 
-	fmt.Println(request)
-	fmt.Println(request.URL.Query())
-
 	// Checking the HTTP Request Method
 	if request.Method == "GET" {
 		// Addition of a Header to the response
-		response.Header().Add("content-type", "application/json")
-
-		// Parsing the URL for parameters
-		params := request.URL.Query().Get("id")
-		fmt.Println(params)
-		fmt.Fprintf(response, params)
-
-		// Converting the params into an ObjectID
-		id, _ := primitive.ObjectIDFromHex(params)
-
-		// Creating a variable user
-		var user User
+		response.Header().Set("Content-Type", "application/json")
 
 		// Connecting to MongoDB's user collection
-		collection := client.Database("insta").Collection("user")
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+        collection, err := getMongoDbCollection("insta", "user")
+        if err != nil{
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{"message": Might be a problem with the Database."}`))
+            return
+        }
 
-		// BROKEN Finding the one user from the DB
-		err := collection.FindOne(ctx, User{ID: id}).Decode(&user)
-		if err != nil {
+        var filter bson.M = bson.M{}
+
+        if request.URL.Query().Get("id") != "" {
+            id := request.URL.Query().Get("id")
+            objID, _ := primitive.ObjectIDFromHex(id)
+            filter = bson.M{"_id": objID}
+        }
+
+        fmt.Println(request)
+
+        var results []bson.M
+        cur, err := collection.Find(context.Background(), filter)
+        defer cur.Close(context.Background())
+
+        if err != nil {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-			return
-		}
+            return
+        }
 
-		// Returning a response with the user Object
-		json.NewEncoder(response).Encode(user)
+        cur.All(context.Background(), &results)
+        if results == nil {
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+            return
+        }
+
+		json.NewEncoder(response).Encode(results)
 	} else {
 		http.Redirect(response, request, "/users/all", http.StatusFound)
 	}
@@ -220,9 +229,15 @@ func postPost(response http.ResponseWriter, request *http.Request) {
 		response.Header().Add("content-type", "application/json")
 		var post Post
 		json.NewDecoder(request.Body).Decode(&post)
-		collection := client.Database("insta").Collection("post")
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-		result, _ := collection.InsertOne(ctx, post)
+
+        collection, err := getMongoDbCollection("insta", "post")
+        if err != nil{
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{"message": Might be a problem with the Database."}`))
+            return
+        }
+
+		result, _ := collection.InsertOne(context.Background(), post)
 		json.NewEncoder(response).Encode(result)
 	} else {
 		http.Redirect(response, request, "/", http.StatusFound)
@@ -231,7 +246,7 @@ func postPost(response http.ResponseWriter, request *http.Request) {
 	fmt.Fprintf(response, "Endpoint Hit: Create a Post endpoint")
 }
 
-func getAllPosts(response http.ResponseWriter, request *http.Request) {
+func getPostsByUserId(response http.ResponseWriter, request *http.Request) {
 	/*
 	   parameter type => (user *User)
 	   return type => array of (post *Post)?
@@ -250,15 +265,14 @@ func getAllPosts(response http.ResponseWriter, request *http.Request) {
         //lim := keys.Get("limit")
 
         //var posts []Post
-
-		collection := client.Database("insta").Collection("post")
-		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-
+        collection, err := getMongoDbCollection("insta", "post")
         cursor, err := collection.Find(context.TODO(), bson.M{"userId": id})
         if err != nil {
-            fmt.Println("Finding all the documents ERROR :", err)
-            defer cursor.Close(ctx)
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{"message": Might be a problem with the Database."}`))
+            return
         }
+
         fmt.Println(cursor)
 	} else {
 		http.Redirect(response, request, "/", http.StatusFound)
@@ -317,4 +331,29 @@ func doPasswordsMatch(hashedPassword, currPassword string, salt []byte) bool {
 	var currPasswordHash = hashPassword(currPassword, salt)
 
 	return hashedPassword == currPasswordHash
+}
+
+func GetMongoDbCollection() (*mongo.Client, error) {
+    client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://localhost:27017"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    err = client.Ping(context.Background(), readpref.Primary())
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    return client, nil
+}
+
+func getMongoDbCollection(DbName string, CollectionName string) (*mongo.Collection, error){
+    client, err := GetMongoDbCollection()
+    if err != nil {
+        return nil, err
+    }
+
+    collection := client.Database(DbName).Collection(CollectionName)
+
+    return collection, nil
 }
