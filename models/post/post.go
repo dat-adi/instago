@@ -5,7 +5,7 @@ import (
 	"encoding/json"
     "log"
 	"fmt"
-	connect "github.com/dat-adi/instago/database/connect"
+	connect "github.com/dat-adi/instago/database"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"

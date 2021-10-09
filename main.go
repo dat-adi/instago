@@ -5,7 +5,7 @@ import (
 	"fmt"
 	post "github.com/dat-adi/instago/models/post"
 	user "github.com/dat-adi/instago/models/user"
-	"github.com/dat-adi/instago/routes/routes"
+	"github.com/dat-adi/instago/routes"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
@@ -25,7 +25,7 @@ func homePage(response http.ResponseWriter, request *http.Request) {
 */
 func handleRequests() {
 	// Set up a router
-	app := route.Router()
+	app := routes.Router()
 
 	// Routes to the various pages
 	app.HandleFunc("^/$", homePage)
