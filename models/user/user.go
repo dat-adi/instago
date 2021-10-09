@@ -1,17 +1,16 @@
-package models
+package user
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/dat-adi/instago/database/connect"
-	passec "github.com/dat-adi/instago/utils/passec"
+	"github.com/dat-adi/instago/database"
+	passec "github.com/dat-adi/instago/utils/password"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
-	"time"
 )
 
 // Creating a struct for the User type
