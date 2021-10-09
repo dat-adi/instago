@@ -29,11 +29,11 @@ func homePage(response http.ResponseWriter, request *http.Request) {
 func handleRequests() {
 	http.HandleFunc("/", homePage)
 	http.HandleFunc("/users/all", getAllUsers)
-	http.HandleFunc("/users/{id}", getUser)
+    http.HandleFunc("/users/:id", getUser)
 	http.HandleFunc("/users", postUser)
-	http.HandleFunc("/posts/{id}", getPost)
+    http.HandleFunc("/posts/:id", getPost)
 	http.HandleFunc("/posts", postPost)
-	http.HandleFunc("/posts/users/{id}", getPostsByUserId)
+    http.HandleFunc("/posts/users/:id", getPostsByUserId)
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
 
@@ -65,21 +65,10 @@ func getAllUsers(response http.ResponseWriter, request *http.Request) {
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 
 	cursor, err := collection.Find(ctx, user)
-	if err != nil {
-		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-	}
-
-	err = cursor.Decode(&user)
-	if err != nil {
-		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-	}
-
-	fmt.Println(cursor)
-	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-		return
-	}
+    if err != nil {
+        response.WriteHeader(http.StatusInternalServerError)
+        return
+    }
 
 	json.NewEncoder(response).Encode(cursor)
 }
