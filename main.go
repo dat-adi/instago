@@ -10,6 +10,7 @@ import (
 	"time"
     user "github.com/dat-adi/instago/model/user"
     post "github.com/dat-adi/instago/model/post"
+    "github.com/dat-adi/instago/routes/route"
 )
 
 // Defining a simple homepage to land on
@@ -23,18 +24,24 @@ func homePage(response http.ResponseWriter, request *http.Request) {
    Routing for the requests is done here
 */
 func handleRequests() {
+    // Set up a router
+    app := route.Router()
+
     // Routes to the various pages
-	http.HandleFunc("/", homePage)
-    http.HandleFunc("/users/:id", user.getUser)
-	http.HandleFunc("/users", user.postUser)
-    http.HandleFunc("/posts/:id", post.getPost)
-	http.HandleFunc("/posts", post.postPost)
-    http.HandleFunc("/posts/users/:id", post.getPostsByUserId)
+	app.HandleFunc("^/$", homePage)
+    app.HandleFunc("/users/([a-zA-Z0-9]+)$", user.getUser)
+	app.HandleFunc("/users", user.postUser)
+    app.HandleFunc("/posts/([a-zA-Z0-9]+)$", post.getPost)
+	app.HandleFunc("/posts", post.postPost)
+    app.HandleFunc("/posts/users/([a-zA-Z0-9]+)$", post.getPostsByUserId)
 
 //	http.HandleFunc("/users/all", user.getAllUsers)
 
     // Starting up the server
-	log.Fatal(http.ListenAndServe(":9000", nil))
+    err := http.ListenAndServe(":9000", app)
+    if err != nil {
+        log.Fatalf("Could not start server: %s\n", err.Error())
+    }
 }
 
 var client *mongo.Client
