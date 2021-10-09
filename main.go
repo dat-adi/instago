@@ -1,20 +1,20 @@
 package main
 
 import (
-    "context"
+	"context"
 	"encoding/json"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/http"
 	"time"
 )
 
 func homePage(response http.ResponseWriter, request *http.Request) {
-	fmt.Fprintf(response, "Homepage Endpoint Hit.\n")
-    fmt.Fprintf(response, "Please check the other endpoints now.")
+	fmt.Fprintf(response, "Homepage Endpoint Hit...\n")
+	fmt.Fprintf(response, "Please check the other endpoints now.")
 }
 
 /*
@@ -29,7 +29,6 @@ func handleRequests() {
 	http.HandleFunc("/posts/users/{id}", getAllPosts)
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
-
 
 /*
    From here, consider splitting it up into separate files.
@@ -53,24 +52,24 @@ func getUser(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (id int64)
 	   Get one user by ID
 	*/
-    response.Header().Add("content-type", "application/json")
-    params := request.URL.Query().Get("id")
-    fmt.Println(params)
-    id, _ := primitive.ObjectIDFromHex(params)
-    var user User
+	response.Header().Add("content-type", "application/json")
+	params := request.URL.Query().Get("id")
+	fmt.Fprintf(response, params)
+	id, _ := primitive.ObjectIDFromHex(params)
+	var user User
 
-    collection := client.Database("insta").Collection("user")
-    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-    // BROKEN for some reason
-    err := collection.FindOne(ctx, User{ID: id}).Decode(&user)
-    if err != nil {
-        response.WriteHeader(http.StatusInternalServerError)
-        response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-        return
-    }
+	collection := client.Database("insta").Collection("user")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	// BROKEN for some reason
+	err := collection.FindOne(ctx, User{ID: id}).Decode(&user)
+	if err != nil {
+		response.WriteHeader(http.StatusInternalServerError)
+		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+		return
+	}
 
-    json.NewEncoder(response).Encode(user)
-	fmt.Println("Endpoint Hit: All articles endpoint")
+	json.NewEncoder(response).Encode(user)
+	fmt.Fprintf(response, "Endpoint Hit: Get a user by Id endpoint")
 }
 
 func postUser(response http.ResponseWriter, request *http.Request) {
@@ -78,21 +77,21 @@ func postUser(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (user *User)
 	   Create a user
 	*/
-    response.Header().Add("content-type", "application/json")
-    var user User
-    json.NewDecoder(request.Body).Decode(&user)
-    collection := client.Database("insta").Collection("user")
-    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-    result, _ := collection.InsertOne(ctx, user)
-    json.NewEncoder(response).Encode(result)
+	response.Header().Add("content-type", "application/json")
+	var user User
+	json.NewDecoder(request.Body).Decode(&user)
+	collection := client.Database("insta").Collection("user")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	result, _ := collection.InsertOne(ctx, user)
+	json.NewEncoder(response).Encode(result)
 
-	fmt.Println("Endpoint Hit: Create an user endpoint")
+	fmt.Fprintf(response, "Endpoint Hit: Create an user endpoint")
 }
 
 func main() {
-    fmt.Println("Starting the application...")
-    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-    client, _ = mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017/insta"))
+	fmt.Println("Starting the application...")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	client, _ = mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017/insta"))
 	handleRequests()
 }
 
@@ -101,10 +100,10 @@ func main() {
 */
 
 type Post struct {
-	ID       int64      `json:"id"`
-	Caption  string     `json:"caption"`
-	ImageURL string     `json:"image_url"`
-	PostedAt *time.Time `json:"posted_at"`
+	ID       primitive.ObjectID `json:"id"`
+	Caption  string             `json:"caption"`
+	ImageURL string             `json:"image_url"`
+	PostedAt *time.Time         `json:"posted_at"`
 }
 
 type Posts []Post
@@ -115,7 +114,7 @@ func getPost(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (id int64)
 	   Get one post by ID
 	*/
-	fmt.Println("Endpoint Hit: Get Post by ID endpoint")
+	fmt.Fprintf(response, "Endpoint Hit: Get Post by ID endpoint")
 }
 
 func postPost(response http.ResponseWriter, request *http.Request) {
@@ -123,15 +122,15 @@ func postPost(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (post *Post)
 	   Create a post
 	*/
-    response.Header().Add("content-type", "application/json")
-    var post Post
-    json.NewDecoder(request.Body).Decode(&post)
-    collection := client.Database("insta").Collection("user")
-    ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-    result, _ := collection.InsertOne(ctx, post)
-    json.NewEncoder(response).Encode(result)
+	response.Header().Add("content-type", "application/json")
+	var post Post
+	json.NewDecoder(request.Body).Decode(&post)
+	collection := client.Database("insta").Collection("post")
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	result, _ := collection.InsertOne(ctx, post)
+	json.NewEncoder(response).Encode(result)
 
-	fmt.Println("Endpoint Hit: Create a Post endpoint")
+	fmt.Fprintf(response, "Endpoint Hit: Create a Post endpoint")
 }
 
 func getAllPosts(response http.ResponseWriter, request *http.Request) {
@@ -140,6 +139,5 @@ func getAllPosts(response http.ResponseWriter, request *http.Request) {
 	   return type => array of (post *Post)?
 	   Get all the posts made by a user
 	*/
-	fmt.Println("Endpoint Hit: Get all user Posts endpoint")
+	fmt.Fprintf(response, "Endpoint Hit: Get all user Posts endpoint")
 }
-
