@@ -52,23 +52,39 @@ func getUser(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (id int64)
 	   Get one user by ID
 	*/
-	response.Header().Add("content-type", "application/json")
-	params := request.URL.Query().Get("id")
-	fmt.Fprintf(response, params)
-	id, _ := primitive.ObjectIDFromHex(params)
-	var user User
+	// Checking the HTTP Request Method
+	if request.Method == "GET" {
+		// Addition of a Header to the response
+		response.Header().Add("content-type", "application/json")
 
-	collection := client.Database("insta").Collection("user")
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	// BROKEN for some reason
-	err := collection.FindOne(ctx, User{ID: id}).Decode(&user)
-	if err != nil {
-		response.WriteHeader(http.StatusInternalServerError)
-		response.Write([]byte(`{"message":"` + err.Error() + `"}`))
-		return
+		// Parsing the URL for parameters
+		params := request.URL.Query().Get("id")
+		fmt.Fprintf(response, params)
+
+		// Converting the params into an ObjectID
+		id, _ := primitive.ObjectIDFromHex(params)
+
+		// Creating a variable user
+		var user User
+
+		// Connecting to MongoDB's user collection
+		collection := client.Database("insta").Collection("user")
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+
+		// BROKEN Finding the one user from the DB
+		err := collection.FindOne(ctx, User{ID: id}).Decode(&user)
+		if err != nil {
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+			return
+		}
+
+		// Returning a response with the user Object
+		json.NewEncoder(response).Encode(user)
+	} else {
+		http.Redirect(response, request, "/", http.StatusFound)
 	}
 
-	json.NewEncoder(response).Encode(user)
 	fmt.Fprintf(response, "Endpoint Hit: Get a user by Id endpoint")
 }
 
@@ -77,13 +93,17 @@ func postUser(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (user *User)
 	   Create a user
 	*/
-	response.Header().Add("content-type", "application/json")
-	var user User
-	json.NewDecoder(request.Body).Decode(&user)
-	collection := client.Database("insta").Collection("user")
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	result, _ := collection.InsertOne(ctx, user)
-	json.NewEncoder(response).Encode(result)
+	if request.Method == "POST" {
+		response.Header().Add("content-type", "application/json")
+		var user User
+		json.NewDecoder(request.Body).Decode(&user)
+		collection := client.Database("insta").Collection("user")
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		result, _ := collection.InsertOne(ctx, user)
+		json.NewEncoder(response).Encode(result)
+	} else {
+		http.Redirect(response, request, "/", http.StatusFound)
+	}
 
 	fmt.Fprintf(response, "Endpoint Hit: Create an user endpoint")
 }
@@ -114,6 +134,26 @@ func getPost(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (id int64)
 	   Get one post by ID
 	*/
+	if request.Method == "GET" {
+		response.Header().Add("content-type", "application/json")
+		params := request.URL.Query().Get("id")
+		fmt.Fprintf(response, params)
+		id, _ := primitive.ObjectIDFromHex(params)
+		var post Post
+
+		collection := client.Database("insta").Collection("post")
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		// BROKEN for some reason
+		err := collection.FindOne(ctx, User{ID: id}).Decode(&post)
+		if err != nil {
+			response.WriteHeader(http.StatusInternalServerError)
+			response.Write([]byte(`{"message":"` + err.Error() + `"}`))
+			return
+		}
+		json.NewEncoder(response).Encode(post)
+	} else {
+		http.Redirect(response, request, "/", http.StatusFound)
+	}
 	fmt.Fprintf(response, "Endpoint Hit: Get Post by ID endpoint")
 }
 
@@ -122,22 +162,30 @@ func postPost(response http.ResponseWriter, request *http.Request) {
 	   parameter type => (post *Post)
 	   Create a post
 	*/
-	response.Header().Add("content-type", "application/json")
-	var post Post
-	json.NewDecoder(request.Body).Decode(&post)
-	collection := client.Database("insta").Collection("post")
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	result, _ := collection.InsertOne(ctx, post)
-	json.NewEncoder(response).Encode(result)
+	if request.Method == "POST" {
+		response.Header().Add("content-type", "application/json")
+		var post Post
+		json.NewDecoder(request.Body).Decode(&post)
+		collection := client.Database("insta").Collection("post")
+		ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+		result, _ := collection.InsertOne(ctx, post)
+		json.NewEncoder(response).Encode(result)
+	} else {
+		http.Redirect(response, request, "/", http.StatusFound)
+	}
 
 	fmt.Fprintf(response, "Endpoint Hit: Create a Post endpoint")
 }
 
 func getAllPosts(response http.ResponseWriter, request *http.Request) {
 	/*
-	   paramter type => (user *User)
+	   parameter type => (user *User)
 	   return type => array of (post *Post)?
 	   Get all the posts made by a user
 	*/
+	if request.Method == "GET" {
+	} else {
+		http.Redirect(response, request, "/", http.StatusFound)
+	}
 	fmt.Fprintf(response, "Endpoint Hit: Get all user Posts endpoint")
 }
