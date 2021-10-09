@@ -7,10 +7,10 @@ This project has been built to submit in the Task Round for the internship oppor
 Here's a few of the requirements listed and the status of their completion.
 
 - [X] `POST` : Create a User.
-- [-] `GET`  : Get a User using the ObjectID.
+- [X] `GET`  : Get a User using the ObjectID.
 - [X] `POST` : Create a Post.
-- [-] `GET`  : Get a Post using the ObjectID.
-- [-] `GET`  : List all the Posts using the User ObjectID.
+- [X] `GET`  : Get a Post using the ObjectID.
+- [ ] `GET`  : List all the Posts using the User ObjectID.
 
 Additional extension for the task.
 - [X] Documented.
