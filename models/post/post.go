@@ -3,12 +3,12 @@ package post
 import (
 	"context"
 	"encoding/json"
-    "log"
 	"fmt"
-	connect "github.com/dat-adi/instago/database"
+	database "github.com/dat-adi/instago/database"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"log"
 	"net/http"
 	"time"
 )
@@ -49,7 +49,7 @@ func getPost(response http.ResponseWriter, request *http.Request) {
 		var post Post
 
 		// Connect to the database
-		collection, err := connect.getMongoDbCollection("insta", "post")
+		collection, err := database.getMongoDbCollection("insta", "post")
 
 		// Assigning errors to the object and results to the :post variable
 		err = collection.FindOne(context.TODO(), Post{ID: id}).Decode(&post)
@@ -91,14 +91,14 @@ func postPost(response http.ResponseWriter, request *http.Request) {
 		// Addition of a response header for JSON compatibility
 		response.Header().Add("Content-Type", "application/json")
 
-        // Defining an object for the post
+		// Defining an object for the post
 		var post Post
 
 		// Decodes the data and places it into the post variable
 		json.NewDecoder(request.Body).Decode(&post)
 
 		// Connects to the database
-		collection, err := connect.getMongoDbCollection("insta", "post")
+		collection, err := database.getMongoDbCollection("insta", "post")
 		if err != nil {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{"message": Might be a problem with the Database."}`))
@@ -120,12 +120,12 @@ func postPost(response http.ResponseWriter, request *http.Request) {
 }
 
 /*
-    The getPostsByUserId is a function that works
-    to provide all the posts created by a user in the database.
-    The concept is that each post has a user ObjectID in the
-    schema.
-    We attempt to query the various posts by providing a filter
-    which checks for the user ObjectID and append it to the output.
+   The getPostsByUserId is a function that works
+   to provide all the posts created by a user in the database.
+   The concept is that each post has a user ObjectID in the
+   schema.
+   We attempt to query the various posts by providing a filter
+   which checks for the user ObjectID and append it to the output.
 */
 
 func getPostsByUserId(response http.ResponseWriter, request *http.Request) {
@@ -134,7 +134,7 @@ func getPostsByUserId(response http.ResponseWriter, request *http.Request) {
 	   Get all the posts made by a user
 	*/
 
-    // Simple print for logging on the server side
+	// Simple print for logging on the server side
 	fmt.Println("From the getAllPosts function => ", request.RequestURI)
 
 	// Checks the HTTP Request Type
@@ -142,25 +142,25 @@ func getPostsByUserId(response http.ResponseWriter, request *http.Request) {
 		// Addition of a response header for JSON compatibility
 		response.Header().Add("content-type", "application/json")
 
-        // Retrieval of keys from the URL
+		// Retrieval of keys from the URL
 		keys := request.URL.Query()
-        
-		id := keys.Get("id")        // User ID parameter
-		lim := keys.Get("limit")    // Limit parameter for pagination
 
-        // Simple array of posts
+		id := keys.Get("id")     // User ID parameter
+		lim := keys.Get("limit") // Limit parameter for pagination
+
+		// Simple array of posts
 		var posts Posts
 
 		// Connecting to the database's post collection
-		collection, err := connect.getMongoDbCollection("insta", "post")
+		collection, err := database.getMongoDbCollection("insta", "post")
 
-        // Creating a filter to parse through the Documents
-        filter := Post{userId: primitive.ObjectIDFromHex(id)}
+		// Creating a filter to parse through the Documents
+		filter := Post{userId: primitive.ObjectIDFromHex(id)}
 
 		// Assigning errors to the object and results to the :posts variable
-        err = collection.Find(context.TODO(), filter).Limit(lim).Decode(&posts)
+		err = collection.Find(context.TODO(), filter).Limit(lim).Decode(&posts)
 
-        // Error Handling
+		// Error Handling
 		if err != nil {
 			if err == mongo.ErrNoDocuments {
 				return

@@ -52,7 +52,7 @@ func getUser(response http.ResponseWriter, request *http.Request) {
         var user User
 
 		// Connecting to MongoDB's user collection
-		collection, err := connect.getMongoDbCollection("insta", "user")
+		collection, err := database.getMongoDbCollection("insta", "user")
 
 		// Assigning errors to the object and results to the :user variable
 		err = collection.FindOne(context.TODO(), User{ID: id}).Decode(&user)
@@ -102,7 +102,7 @@ func postUser(response http.ResponseWriter, request *http.Request) {
 		json.NewDecoder(request.Body).Decode(&user)
 
 		// Connects to the database
-		collection, err := connect.getMongoDbCollection("insta", "post")
+		collection, err := database.getMongoDbCollection("insta", "post")
 		if err != nil {
 			response.WriteHeader(http.StatusInternalServerError)
 			response.Write([]byte(`{"message": Might be a problem with the Database."}`))
@@ -138,7 +138,7 @@ func getAllUsers(response http.ResponseWriter, request *http.Request) {
 	var users Users
 
 	// Connecting to MongoDB's user collection
-    collection, err := connect.getMongoDbCollection("insta", "user")
+    collection, err := database.getMongoDbCollection("insta", "user")
 
 	// Retrieving the collection of users
 	err = collection.Find(context.TODO(), users).Decode(&users)
